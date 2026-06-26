@@ -66,11 +66,33 @@ graph TD
 > ⚠️ **insufficient_data Routing**: When `evidence_verdict = insufficient_data` and the case is ambiguous/vague, always fall back to `customer_support` to request more details from the customer.
 
 *   **`fraud_risk`**: Assigned to `phishing_or_social_engineering` and any ticket displaying suspicious or fraudulent activity patterns.
-*   **`dispute_resolution`**: Assigned to `wrong_transfer` cases only (not refund requests, which are policy-based).
+*   **`dispute_resolution`**: Assigned to `wrong_transfer` cases, and to **contested `refund_request`** cases (i.e. refunds the customer is disputing rather than simply requesting as a change of mind).
 *   **`payments_ops`**: Assigned to `payment_failed` and `duplicate_payment`.
-*   **`merchant_operations`**: Assigned to `merchant_settlement_delay`. Also the default department when `user_type == 'merchant'` even if the case type is otherwise ambiguous.
-*   **`agent_operations`**: Assigned to `agent_cash_in_issue` and complaints received from a user of type `agent`.
-*   **`customer_support`**: Assigned to `refund_request`, `other`, and any case where `evidence_verdict == insufficient_data` and the system is awaiting clarification from the customer.
+*   **`merchant_operations`**: Assigned to `merchant_settlement_delay` and any merchant-side complaint (user_type == `merchant`). This is also the default department when `user_type == 'merchant'` even if the case type is otherwise ambiguous.
+*   **`agent_operations`**: Assigned to `agent_cash_in_issue` and any agent-side complaint (user_type == `agent`).
+*   **`customer_support`**: Assigned to undisputed `refund_request` (change of mind), `other`, and **any case where `evidence_verdict == insufficient_data`** so the system can request more details from the customer.
+
+#### 2.1 Refund request disambiguation
+
+| `case_type` | Sub-condition | Department |
+| :--- | :--- | :--- |
+| `refund_request` | Customer simply changed their mind / merchant-policy question | `customer_support` |
+| `refund_request` | Customer is **contesting** the charge (e.g. unauthorized, duplicate, scam) | `dispute_resolution` |
+
+Detection heuristic for "contested": the complaint contains dispute language such as
+`unauthorized`, `didn't make`, `never made`, `someone used`, `fraud`, `scam`, `chargeback`,
+combined with a completed debit, OR `evidence_verdict == inconsistent`.
+
+#### 2.2 `insufficient_data` routing
+
+When `evidence_verdict == insufficient_data`, the routing is:
+
+* `phishing_or_social_engineering` -> `fraud_risk` (always).
+* `wrong_transfer` -> `dispute_resolution` (the case type still drives the department; the agent just needs clarification before acting).
+* `payment_failed` / `duplicate_payment` -> `payments_ops`.
+* `merchant_settlement_delay` -> `merchant_operations`.
+* `agent_cash_in_issue` -> `agent_operations`.
+* Otherwise (including `refund_request`, `other`, or unknown case type) -> `customer_support` so the customer is asked for the missing detail (transaction id, recipient, amount, time).
 
 ---
 
