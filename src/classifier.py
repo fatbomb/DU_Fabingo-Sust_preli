@@ -49,12 +49,16 @@ _WRONG_TRANSFER_KW = [
 _PAYMENT_FAILED_KW = [
     "payment failed", "failed payment", "recharge failed", "failed recharge",
     "bill failed", "payment unsuccessful", "money cut but failed",
+    "showed failed", "shows failed", "showing failed",
+    "app failed", "transaction failed",
+    "balance deducted", "balance was deducted", "money deducted",
+    "ডেডাক্টেড", "কেটে নিয়েছে", "কেটে রেখেছে",
     "it failed", "was unsuccessful",
     "পেমেন্ট ফেইলড", "রিচার্জ ফেইলড", "ফেইলড", "ব্যর্থ",
     "পেমেন্ট ব্যর্থ", "টাকা কেটেছে",
     "রিচার্জ হয়নি", "পেমেন্ট হয়নি", "ব্যালেন্স কেটেছে",
     "failed কিন্তু টাকা",
-]
+]  # fmt: off
 
 _DUPLICATE_PAYMENT_KW = [
     "twice", "double", "duplicate", "charged twice", "deducted twice",
