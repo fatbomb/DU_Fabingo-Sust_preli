@@ -264,6 +264,24 @@ These must be distinguished from phishing (which is about *attempted* credential
 
 ---
 
+### 5.4 — Failed Wrong Transfer (Unregistered Number)
+**Input patterns:**
+- `"I sent money to wrong number 017XXXXXX but they don't have bKash. Money didn't go but I'm worried."`
+- `"ভুল নাম্বারে টাকা দিয়েছি কিন্তু ট্রানজ্যাকশন ফেইল দেখাচ্ছে।"`
+
+**Why it's tricky:** The customer *intended* a wrong transfer, but the transaction actually `failed`. There is no financial loss to a third party.
+
+**Correct handling:**
+- `case_type` = `wrong_transfer` (based on user intent)
+- If the TXN history shows a `failed` transfer to that number:
+  - `evidence_verdict` = `consistent` (they tried, and it failed as expected)
+  - `severity` = `low` (no money lost, no dispute needed)
+  - `department` = `customer_support` (reassure them the money is safe)
+  - `human_review_required` = `false`
+- `agent_summary`: *"Customer attempted a wrong transfer, but the transaction failed. No funds were lost. Assure customer."*
+
+---
+
 ## Category 6: Prompt Injection Attempts (Real Examples)
 
 These are adversarial complaints designed to manipulate the AI system. All must be silently ignored and handled as normal tickets.

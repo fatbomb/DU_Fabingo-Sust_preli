@@ -150,6 +150,12 @@ Generate 2–3 descriptive codes derived from classification decisions:
 ### POST `/analyze-ticket`
 *   **Response Codes**:
     *   `200 OK`: Successful analysis, JSON output.
-    *   `400 Bad Request`: Missing fields or malformed JSON payload.
-    *   `422 Unprocessable Entity`: Input is semantically invalid (e.g., empty complaint string).
+    *   `400 Bad Request`: Missing required fields (`ticket_id`, `complaint`) or malformed JSON payload.
+    *   `422 Unprocessable Entity`: Input is semantically invalid (e.g., empty complaint string `""` or `null`).
     *   `500 Internal Server Error`: Safe generic error message (no stack traces, tokens, or secrets leaked).
+
+#### Robustness and Malformed Input Handling
+To achieve maximum score in **Performance & Reliability** (10 points):
+1.  **Missing `transaction_history`**: The schema marks this as optional. If it is missing or `null`, default it to an empty list `[]` before processing. Do not crash with `KeyError` or `TypeError`.
+2.  **LLM Timeout Limit**: Wrap the external LLM API call with a strict **15-second timeout**. If the LLM does not respond within 15 seconds, catch the `TimeoutError` and instantly fall back to the Pure Rule-Based Engine (Option C) to ensure the API responds well within the strict 30-second per-request limit.
+3.  **Missing `language` or `user_type`**: Default `language` to `"mixed"` and `user_type` to `"customer"` if they are absent or `null`.
