@@ -44,10 +44,21 @@ Map complaint phrases to candidate `type` enums:
 
 Let $T$ be the list of transactions in `transaction_history`. Let $A_c$ be the extracted amount from the complaint, and $Y_c$ be the extracted transaction type.
 
+### Step 0: Early Exit Conditions (Check Before Matching)
+
+Before running any matching, check these special conditions and return immediately:
+
+1.  **Empty Complaint / No Entities Extracted**: If no amount, counterparty, or transaction type was extracted from the complaint AND the complaint is fewer than 15 words long → `evidence_verdict = insufficient_data`, `relevant_transaction_id = null`, `case_type = other`. Ask for details.
+
+2.  **Phishing Case Detected**: If keywords indicate phishing (`otp`, `pin request`, `account block threat`) → skip all transaction matching. Return `relevant_transaction_id = null`, `evidence_verdict = insufficient_data` by design. See Part 3 for routing.
+
+3.  **Unauthorized Transaction Claim**: If the customer says they **did not initiate** a transaction (not "wrong number" but "I never did this"), skip the normal matching engine and route directly to `fraud_risk` / `critical`. See Corner Cases Part 6, Section 2.1.
+
 ### Step 1: Filter Candidates
 Find all transactions $t \in T$ where:
-1.  $t.\text{amount} == A_c$
+1.  `abs(t.amount - A_c) / A_c < 0.02` (within ±2% to account for service charges deducted from transfer amount)
 2.  $t.\text{type} == Y_c$ (or $Y_c$ is null/unknown)
+3.  Transaction list may NOT be sorted — always use `t.timestamp` field directly for time comparisons, never rely on list order.
 
 Let this subset of candidates be $C$.
 

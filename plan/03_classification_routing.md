@@ -16,14 +16,27 @@ The classifier must assign the ticket to one of the 8 allowed enums. Text querie
 
 | Value | Case Definition | Key Trigger Words (English & Bangla) |
 | :--- | :--- | :--- |
-| `wrong_transfer` | Money sent to the wrong recipient | "wrong transfer", "wrong number", "typing mistake", "ভুল নম্বর", "ভুল নাম্বারে", "অন্য নাম্বারে" |
-| `payment_failed` | Transaction failed but balance deducted | "payment failed", "balance deducted", "recharge failed", "পেমেন্ট ব্যর্থ", "টাকা কেটেছে", "রিসার্চ পাইনি" |
+| `wrong_transfer` | Money sent to the wrong recipient OR wrong amount sent | "wrong transfer", "wrong number", "typing mistake", "ভুল নম্বর", "ভুল নাম্বারে", "ভুল টাকা পাঠিয়েছি", "wrong amount" |
+| `payment_failed` | Transaction failed but balance deducted | "payment failed", "balance deducted", "recharge failed", "পেমেন্ট ব্যর্থ", "টাকা কেটেছে", "failed কিন্তু টাকা গেছে" |
 | `refund_request` | Customer requests refund for completed purchase | "refund my", "change mind", "return money", "ফেরত চাই", "রিফান্ড", "প্রোডাক্ট নেব না" |
 | `duplicate_payment` | Charged twice for the same transaction | "charged twice", "deducted twice", "double payment", "দুইবার কেটেছে", "ডাবল পেমেন্ট", "টাকা ২ বার নিল" |
-| `merchant_settlement_delay` | Merchant settlement delayed | "merchant", "settlement delay", "sales money", "মার্চেন্ট সেটেলমেন্ট", "সেটেলমেন্ট বাকি", "পেমেন্ট পাইনি" |
-| `agent_cash_in_issue` | Cash deposit through agent not received | "agent cash in", "agent deposit", "এজেন্ট ক্যাশ ইন", "এজেন্ট টাকা দেয়নি", "এজেন্ট থেকে ক্যাশ ইন" |
-| `phishing_or_social_engineering` | Suspicious calls or credential theft attempt | "OTP", "PIN", "password", "bKash block", "account suspend", "ওটিপি", "পিন নম্বর", "একাউন্ট ব্লক" |
-| `other` | Anything not matching the above | Vague complaints, queries about limit, generic greetings, "check my account", "টাকা সমস্যা" |
+| `merchant_settlement_delay` | Merchant settlement delayed | "settlement delay", "sales money", "মার্চেন্ট সেটেলমেন্ট", "সেটেলমেন্ট বাকি" |
+| `agent_cash_in_issue` | Cash deposit through agent not received | "agent cash in", "agent deposit", "এজেন্ট ক্যাশ ইন", "এজেন্ট টাকা দেয়নি" |
+| `phishing_or_social_engineering` | Someone is ASKING the customer for credentials, or threatening account block to steal OTP | "they asked for my OTP", "called saying bKash", "সে পিন চেয়েছে", "একাউন্ট বন্ধ করবে বলেছে" |
+| `other` | Account blocked (actual), fee complaints, limit queries, cashback missing, vague loss, unauthorized access, OTP not received (technical) | "I lost money", "account is blocked", "OTP আসছে না", "limit exceeded", "cashback পাইনি", "I didn't make this transfer" |
+
+> ⚠️ **Critical Disambiguation: "account blocked" vs phishing**:
+> - `"Someone called and said my account will be blocked if I don't share OTP"` → `phishing_or_social_engineering` (threat used to steal credentials)
+> - `"My account is blocked, I can't send money"` → `other` (actual block, technical/support issue)
+> - The test: is the customer being **manipulated** by a threat, or **reporting an existing state**?
+
+> ⚠️ **Critical Disambiguation: "wrong transfer" vs "unauthorized transaction"**:
+> - `"I accidentally sent to the wrong number"` → `wrong_transfer` (customer initiated, wrong recipient)
+> - `"I never made this transfer / someone used my account"` → `other` + `fraud_risk` (customer did NOT initiate — account compromise)
+
+> ⚠️ **Critical Disambiguation: "OTP not received" (tech) vs "asked for OTP" (phishing)**:
+> - `"I'm not getting the OTP on my phone"` → `other`, `customer_support`, `low` (technical issue)
+> - `"Someone asked me for my OTP"` → `phishing_or_social_engineering`, `critical`
 
 ---
 
