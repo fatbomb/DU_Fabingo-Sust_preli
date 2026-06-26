@@ -27,30 +27,34 @@ except ImportError:
 
 import logging
 import os
+import sys
 import traceback
+from pathlib import Path
 from typing import Any
 
+# Ensure the parent directory is in the path to allow direct execution (e.g. `python src/main.py`)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from .models import TicketInput, TicketOutput
-from .preprocessor import preprocess
-from .classifier import (
+from src.models import TicketInput, TicketOutput
+from src.preprocessor import preprocess
+from src.classifier import (
     classify_case_type,
     classify_severity,
     classify_human_review,
     compute_confidence,
     compute_reason_codes,
 )
-from .evidence_engine import run_evidence_engine
-from .route import route_department
-from .llm_client import call_llm
-from .rule_fallback import generate_fallback_response
-from .safety import sanitize_all
-from .database import persist_ticket_result
+from src.evidence_engine import run_evidence_engine
+from src.route import route_department
+from src.llm_client import call_llm
+from src.rule_fallback import generate_fallback_response
+from src.safety import sanitize_all
+from src.database import persist_ticket_result
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -294,3 +298,10 @@ def _build_recommended_action(
         )
 
     return actions.get(case_type, actions["other"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+    # Defaults to port 8000, can be overridden by PORT env var
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=True)
