@@ -92,7 +92,39 @@ When `evidence_verdict == insufficient_data`, the routing is:
 * `payment_failed` / `duplicate_payment` -> `payments_ops`.
 * `merchant_settlement_delay` -> `merchant_operations`.
 * `agent_cash_in_issue` -> `agent_operations`.
-* Otherwise (including `refund_request`, `other`, or unknown case type) -> `customer_support` so the customer is asked for the missing detail (transaction id, recipient, amount, time).
+* Otherwise (including `refund_request`, `other`, or unknown case type) -> `customer_support` so the customer is asked for the missing detail (transaction id, recipient, amount, time). Exception: when the user is a `merchant` or `agent`, the user-type default from §2.3 still wins so the ticket reaches the right team even before clarification arrives.
+
+#### 2.3 User-type variation
+
+`user_type` is an orthogonal input that can override or sharpen the case-type routing.
+The allowed values are `customer`, `merchant`, `agent`, `unknown`. Unknown is treated
+as `customer`.
+
+| `user_type` | Default department | Notes |
+| :--- | :--- | :--- |
+| `customer` | Driven by `case_type` (table above) | Default persona. |
+| `merchant` | `merchant_operations` | Always. Even if a merchant files a `payment_failed` or a vague `other` complaint, it still goes to `merchant_operations`. Only `phishing_or_social_engineering` overrides this back to `fraud_risk`. |
+| `agent` | `agent_operations` | Agent complaints about their own cash operations **and** agent complaints about a customer transaction they facilitated both route here. Only `phishing_or_social_engineering` overrides back to `fraud_risk`. |
+| `unknown` | Driven by `case_type` (treated as `customer`) | Do **not** assume merchant-level routing when `user_type` is unknown. |
+
+##### 2.3.1 Persona-specific examples
+
+* `user_type = customer` + `payment_failed` -> `payments_ops`
+* `user_type = merchant` + `payment_failed` (a customer's payment to them failed) -> `payments_ops` (case-type wins because it is specific; merchant_operations only kicks in when no other department is a better fit)
+* `user_type = merchant` + `other` (ambiguous merchant complaint) -> `merchant_operations`
+* `user_type = agent` + `other` (agent complaining about their own cash operation) -> `agent_operations`
+* `user_type = agent` + `agent_cash_in_issue` -> `agent_operations`
+* `user_type = customer` + `merchant_settlement_delay` -> `merchant_operations` (a customer inquiring about a merchant settlement they were promised) -- edge case, still `merchant_operations`.
+* `user_type = customer` + `phishing_or_social_engineering` -> `fraud_risk`
+* `user_type = merchant` + `phishing_or_social_engineering` -> `fraud_risk` (safety wins over persona)
+
+##### 2.3.2 Priority order (when several rules disagree)
+
+1. Safety: `phishing_or_social_engineering` -> `fraud_risk`.
+2. Specific case_type wins over user_type default (e.g. `payment_failed` -> `payments_ops`, even if the reporter is a merchant).
+3. Otherwise, user_type default applies (`merchant` -> `merchant_operations`, `agent` -> `agent_operations`).
+4. Otherwise, case_type-based department from the matrix above.
+5. Fallback: `customer_support` (so we ask for clarification).
 
 ---
 

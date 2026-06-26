@@ -55,7 +55,7 @@ def route_department(
 
     ct = (case_type or "").strip()
     ev = (evidence_verdict or "").strip()
-    ut = (user_type or "customer").strip().lower()
+    ut = (user_type or "customer").strip().lower() or "customer"
 
     # 1. Safety / fraud has highest priority.
     if ct == "phishing_or_social_engineering":
@@ -65,29 +65,28 @@ def route_department(
     #    for clarification (except fraud, already handled above, and
     #    case types whose department is already determined by the
     #    classification - e.g. wrong_transfer still goes to dispute).
-    if ev == "insufficient_data" and ct in ("", "other", "refund_request"):
+    #    merchant/agent personas also keep their default department.
+    if ev == "insufficient_data" and ct in ("", "other", "refund_request") and ut in ("customer", "unknown", ""):
         return "customer_support"
 
-    # 3. User-type based defaults.
-    if ut == "merchant":
+    # 3. Specific case_type wins over the user_type default. A merchant
+    #    reporting `payment_failed` (a customer's payment to them failed)
+    #    still goes to payments_ops because that's the more specific team.
+    if ct in ("payment_failed", "duplicate_payment"):
+        return "payments_ops"
+    if ct == "merchant_settlement_delay":
         return "merchant_operations"
-    if ut == "agent":
+    if ct == "agent_cash_in_issue":
         return "agent_operations"
-
-    # 4. Case-type based routing.
     if ct == "wrong_transfer":
         return "dispute_resolution"
-
     if ct == "refund_request":
         return "dispute_resolution" if is_contested_refund(complaint, ev) else "customer_support"
 
-    if ct in ("payment_failed", "duplicate_payment"):
-        return "payments_ops"
-
-    if ct == "merchant_settlement_delay":
+    # 4. No specific case_type -> user_type default.
+    if ut == "merchant":
         return "merchant_operations"
-
-    if ct == "agent_cash_in_issue":
+    if ut == "agent":
         return "agent_operations"
 
     # 5. Fallback.
@@ -121,6 +120,32 @@ if __name__ == "__main__":  # pragma: no cover
         print(f"{marker} {case['id']}: routed={out!r:25s} expected={expected!r}")
         if not ok:
             failures += 1
+
+    # user_type variation assertions
+    persona_checks = [
+        ("customer", "wrong_transfer", "consistent", "", "dispute_resolution"),
+        ("merchant", "wrong_transfer", "consistent", "", "dispute_resolution"),
+        ("merchant", "other", "insufficient_data", "", "merchant_operations"),
+        ("merchant", "payment_failed", "consistent", "", "payments_ops"),
+        ("agent", "other", "consistent", "agent cheated me on cash out", "agent_operations"),
+        ("agent", "agent_cash_in_issue", "consistent", "", "agent_operations"),
+        ("customer", "merchant_settlement_delay", "consistent", "", "merchant_operations"),
+        ("merchant", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", "fraud_risk"),
+        ("unknown", "wrong_transfer", "consistent", "", "dispute_resolution"),
+        ("unknown", "other", "insufficient_data", "vague complaint", "customer_support"),
+    ]
+    for ut, ct, ev, txt, expected in persona_checks:
+        out = route_department(case_type=ct, evidence_verdict=ev, user_type=ut, complaint=txt)
+        ok = out == expected
+        marker = "OK " if ok else "FAIL"
+        print(f"{marker} persona ut={ut!r:10s} ct={ct!r:30s} -> routed={out!r:25s} expected={expected!r}")
+        if not ok:
+            failures += 1
+
+    if failures:
+        print(f"\n{failures} routing check(s) failed.")
+        sys.exit(1)
+    print("\nAll routing checks passed.")
 
     if failures:
         sys.exit(1)
