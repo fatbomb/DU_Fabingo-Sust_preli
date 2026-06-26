@@ -111,6 +111,15 @@ async def generic_error_handler(request: Request, exc: Exception) -> JSONRespons
 # Health check
 # ---------------------------------------------------------------------------
 
+@app.get("/")
+async def root() -> dict:
+    """Root endpoint, friendly welcome message."""
+    return {
+        "service": "QueueStorm Investigator API",
+        "status": "running",
+        "message": "Send POST requests to /analyze-ticket to use this service."
+    }
+
 @app.get("/health")
 async def health() -> dict:
     """Startup health check — must respond within 60 seconds of boot."""
