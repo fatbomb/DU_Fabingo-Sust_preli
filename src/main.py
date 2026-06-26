@@ -80,7 +80,7 @@ async def on_startup() -> None:
     logger.info("QueueStorm Investigator starting up on port %s", os.environ.get("PORT", "8000"))
     logger.info(
         "LLM: model=%s timeout=%ss",
-        os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+        os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"),
         os.environ.get("LLM_TIMEOUT_SECONDS", "15"),
     )
     logger.info("DB persistence: %s", os.environ.get("ENABLE_DB_PERSISTENCE", "false"))

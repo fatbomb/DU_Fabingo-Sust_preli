@@ -24,7 +24,7 @@ EXPOSE 8000
 
 # Environment defaults (override at runtime via --env or docker-compose)
 ENV GEMINI_API_KEY=""
-ENV GEMINI_MODEL="gemini-2.0-flash"
+ENV GEMINI_MODEL="gemini-3.5-flash"
 ENV LLM_TIMEOUT_SECONDS="15"
 
 # Health check — must pass within 60 seconds of startup

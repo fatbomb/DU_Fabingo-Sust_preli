@@ -13,6 +13,7 @@ import json
 import os
 import re
 import time
+import traceback
 from typing import Optional
 
 # Lazy import to avoid startup failure if library not installed
@@ -23,7 +24,7 @@ except ImportError:
     _GENAI_AVAILABLE = False
 
 _API_KEY = os.environ.get("GEMINI_API_KEY", "")
-_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
 _LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT_SECONDS", "15"))
 
 _client_configured = False
@@ -92,10 +93,12 @@ def _extract_json(text: str) -> Optional[dict]:
     """Extract the first JSON object from LLM response text."""
     m = _JSON_RE.search(text)
     if not m:
+        print(f"❌ LLM RETURNED NO JSON. RAW TEXT:\n{text}")
         return None
     try:
         return json.loads(m.group(0))
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"❌ LLM RETURNED INVALID JSON. ERROR: {e}\nRAW TEXT:\n{text}")
         return None
 
 
@@ -174,6 +177,8 @@ def call_llm(
             success=True,
         )
 
-    except Exception:
+    except Exception as e:
         # Any API error: quota exceeded, network error, schema violation, etc.
+        print("❌ LLM CALL FAILED! Exception details:")
+        traceback.print_exc()
         return LLMResult("", "", success=False)
