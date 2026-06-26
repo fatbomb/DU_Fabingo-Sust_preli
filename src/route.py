@@ -4,14 +4,14 @@ Department routing for QueueStorm Investigator.
 Implements the matrix defined in plan/03_classification_routing.md:
 
   fraud_risk          <-> phishing_or_social_engineering
+                        + unauthorized transaction / account compromise
   dispute_resolution  <-> wrong_transfer
-                        + contested refund_request
   payments_ops        <-> payment_failed | duplicate_payment
   merchant_operations <-> merchant_settlement_delay
-                        + any user_type == 'merchant' complaint
+                        + user_type == 'merchant' (ambiguous/general)
   agent_operations    <-> agent_cash_in_issue
-                        + any user_type == 'agent' complaint
-  customer_support    <-> refund_request (undisputed)
+                        + user_type == 'agent' (ambiguous/general)
+  customer_support    <-> refund_request (undisputed, policy-based)
                         + other
                         + insufficient_data (fallback for clarification)
 """
@@ -50,6 +50,7 @@ def route_department(
     evidence_verdict: str,
     user_type: str = "customer",
     complaint: str = "",
+    is_unauthorized: bool = False,
 ) -> str:
     """Return the department enum for a classified ticket."""
 
@@ -62,6 +63,10 @@ def route_department(
 
     # 1. Safety / fraud has highest priority.
     if ct == "phishing_or_social_engineering":
+        return "fraud_risk"
+
+    # 1b. Unauthorized transaction (account compromise) → fraud_risk
+    if is_unauthorized:
         return "fraud_risk"
 
     # 2. Insufficient data falls back to customer_support so we can ask
@@ -126,29 +131,31 @@ if __name__ == "__main__":  # pragma: no cover
 
     # user_type variation assertions
     persona_checks = [
-        ("customer", "wrong_transfer", "consistent", "", "dispute_resolution"),
-        ("merchant", "wrong_transfer", "consistent", "", "dispute_resolution"),
-        ("merchant", "other", "insufficient_data", "", "merchant_operations"),
-        ("merchant", "payment_failed", "consistent", "", "payments_ops"),
-        ("agent", "other", "consistent", "agent cheated me on cash out", "agent_operations"),
-        ("agent", "agent_cash_in_issue", "consistent", "", "agent_operations"),
-        ("customer", "merchant_settlement_delay", "consistent", "", "merchant_operations"),
-        ("merchant", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", "fraud_risk"),
-        ("unknown", "wrong_transfer", "consistent", "", "dispute_resolution"),
-        ("unknown", "other", "insufficient_data", "vague complaint", "customer_support"),
-        # Vague user (unknown / missing) -> never assume merchant/agent.
-        ("unknown", "other", "insufficient_data", "I lost money. Please help.", "customer_support"),
-        ("unknown", "other", "insufficient_data", "Something is wrong with my account.", "customer_support"),
-        ("", "other", "insufficient_data", "vague complaint", "customer_support"),
-        ("unknown", "merchant_settlement_delay", "consistent", "My settlement has not arrived.", "merchant_operations"),
-        ("unknown", "payment_failed", "consistent", "recharge failed but money gone", "payments_ops"),
-        ("unknown", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", "fraud_risk"),
+        ("customer", "wrong_transfer", "consistent", "", False, "dispute_resolution"),
+        ("merchant", "wrong_transfer", "consistent", "", False, "dispute_resolution"),
+        ("merchant", "other", "insufficient_data", "", False, "merchant_operations"),
+        ("merchant", "payment_failed", "consistent", "", False, "payments_ops"),
+        ("agent", "other", "consistent", "agent cheated me on cash out", False, "agent_operations"),
+        ("agent", "agent_cash_in_issue", "consistent", "", False, "agent_operations"),
+        ("customer", "merchant_settlement_delay", "consistent", "", False, "merchant_operations"),
+        ("merchant", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", False, "fraud_risk"),
+        ("unknown", "wrong_transfer", "consistent", "", False, "dispute_resolution"),
+        ("unknown", "other", "insufficient_data", "vague complaint", False, "customer_support"),
+        ("unknown", "other", "insufficient_data", "I lost money. Please help.", False, "customer_support"),
+        ("unknown", "other", "insufficient_data", "Something is wrong with my account.", False, "customer_support"),
+        ("", "other", "insufficient_data", "vague complaint", False, "customer_support"),
+        ("unknown", "merchant_settlement_delay", "consistent", "My settlement has not arrived.", False, "merchant_operations"),
+        ("unknown", "payment_failed", "consistent", "recharge failed but money gone", False, "payments_ops"),
+        ("unknown", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", False, "fraud_risk"),
+        # Unauthorized transaction → fraud_risk regardless of case_type
+        ("customer", "other", "insufficient_data", "I never made this transfer", True, "fraud_risk"),
+        ("unknown", "wrong_transfer", "consistent", "someone used my account", True, "fraud_risk"),
     ]
-    for ut, ct, ev, txt, expected in persona_checks:
-        out = route_department(case_type=ct, evidence_verdict=ev, user_type=ut, complaint=txt)
+    for ut, ct, ev, txt, is_unauth, expected in persona_checks:
+        out = route_department(case_type=ct, evidence_verdict=ev, user_type=ut, complaint=txt, is_unauthorized=is_unauth)
         ok = out == expected
         marker = "OK " if ok else "FAIL"
-        print(f"{marker} persona ut={ut!r:10s} ct={ct!r:30s} -> routed={out!r:25s} expected={expected!r}")
+        print(f"{marker} persona ut={ut!r:10s} ct={ct!r:30s} unauth={is_unauth} -> routed={out!r:25s} expected={expected!r}")
         if not ok:
             failures += 1
 
@@ -156,6 +163,3 @@ if __name__ == "__main__":  # pragma: no cover
         print(f"\n{failures} routing check(s) failed.")
         sys.exit(1)
     print("\nAll routing checks passed.")
-
-    if failures:
-        sys.exit(1)
