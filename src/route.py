@@ -55,7 +55,10 @@ def route_department(
 
     ct = (case_type or "").strip()
     ev = (evidence_verdict or "").strip()
-    ut = (user_type or "customer").strip().lower() or "customer"
+    # Missing / None / "unknown" all collapse to "customer" so the system
+    # never accidentally assumes merchant or agent persona for a vague user.
+    raw_ut = (user_type or "").strip().lower()
+    ut = "customer" if raw_ut in ("", "unknown", "none", "null") else raw_ut
 
     # 1. Safety / fraud has highest priority.
     if ct == "phishing_or_social_engineering":
@@ -133,6 +136,13 @@ if __name__ == "__main__":  # pragma: no cover
         ("merchant", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", "fraud_risk"),
         ("unknown", "wrong_transfer", "consistent", "", "dispute_resolution"),
         ("unknown", "other", "insufficient_data", "vague complaint", "customer_support"),
+        # Vague user (unknown / missing) -> never assume merchant/agent.
+        ("unknown", "other", "insufficient_data", "I lost money. Please help.", "customer_support"),
+        ("unknown", "other", "insufficient_data", "Something is wrong with my account.", "customer_support"),
+        ("", "other", "insufficient_data", "vague complaint", "customer_support"),
+        ("unknown", "merchant_settlement_delay", "consistent", "My settlement has not arrived.", "merchant_operations"),
+        ("unknown", "payment_failed", "consistent", "recharge failed but money gone", "payments_ops"),
+        ("unknown", "phishing_or_social_engineering", "insufficient_data", "they asked for my otp", "fraud_risk"),
     ]
     for ut, ct, ev, txt, expected in persona_checks:
         out = route_department(case_type=ct, evidence_verdict=ev, user_type=ut, complaint=txt)

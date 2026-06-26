@@ -105,7 +105,8 @@ as `customer`.
 | `customer` | Driven by `case_type` (table above) | Default persona. |
 | `merchant` | `merchant_operations` | Always. Even if a merchant files a `payment_failed` or a vague `other` complaint, it still goes to `merchant_operations`. Only `phishing_or_social_engineering` overrides this back to `fraud_risk`. |
 | `agent` | `agent_operations` | Agent complaints about their own cash operations **and** agent complaints about a customer transaction they facilitated both route here. Only `phishing_or_social_engineering` overrides back to `fraud_risk`. |
-| `unknown` | Driven by `case_type` (treated as `customer`) | Do **not** assume merchant-level routing when `user_type` is unknown. |
+| `unknown` | Treated as `customer` (do **not** assume merchant-level routing). If the case is also vague, fall through to `customer_support` so we ask who they are and what happened. | The "vague user" path. |
+| _missing / null_ | Same as `unknown` -> treated as `customer`. | The input field is optional per the schema. |
 
 ##### 2.3.1 Persona-specific examples
 
@@ -125,6 +126,33 @@ as `customer`.
 3. Otherwise, user_type default applies (`merchant` -> `merchant_operations`, `agent` -> `agent_operations`).
 4. Otherwise, case_type-based department from the matrix above.
 5. Fallback: `customer_support` (so we ask for clarification).
+
+##### 2.3.3 Vague user (`user_type = unknown` or missing)
+
+When the system cannot tell who the reporter is, **never assume** merchant-level or
+agent-level routing just because the complaint text mentions "merchant" or "agent".
+Instead, treat it like a customer and ask for clarification.
+
+| Complaint profile | `user_type` | `case_type` | `evidence_verdict` | Route | Why |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| "I lost money. Please help." | `unknown` | `other` | `insufficient_data` | `customer_support` | No idea who they are; ask for both persona + details. |
+| "My settlement has not arrived." (no user_type given) | missing/`unknown` | `merchant_settlement_delay` | `consistent` | `merchant_operations` | Case type is specific; the merchant/agent override does not apply here because `user_type` is unknown. |
+| "Something is wrong with my account." | `unknown` | `other` | `insufficient_data` | `customer_support` | Vague + unknown persona -> general triage. |
+| "I am a merchant and my sales of 15000 taka have not settled." | `merchant` | `merchant_settlement_delay` | `consistent` | `merchant_operations` | Persona confirms, no need to ask. |
+| Empty `complaint` + `user_type = unknown` | `unknown` | `other` | `insufficient_data` | `customer_support` | Nothing to act on. |
+
+Rules of thumb:
+
+* **Don't guess a persona.** If `user_type` is missing/`unknown`, fall back to the
+  case-type-based department; if the case type is also vague, fall back to
+  `customer_support`.
+* **Do ask for it.** The `customer_reply` for any `unknown` + `insufficient_data`
+  case should politely ask both for the missing transaction detail **and** which
+  kind of user they are (customer / merchant / agent) so we can route correctly
+  next time.
+* **Don't escalate severity on persona ambiguity alone.** A missing `user_type`
+  raises neither severity nor `human_review_required`; those still depend on
+  the case content.
 
 ---
 
