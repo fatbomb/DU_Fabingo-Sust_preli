@@ -47,9 +47,11 @@ _WRONG_TRANSFER_KW = [
 ]
 
 _PAYMENT_FAILED_KW = [
-    "payment failed", "failed payment", "transaction failed",
-    "recharge failed", "balance deducted", "money deducted",
-    "failed but", "showed failed", "পেমেন্ট ব্যর্থ", "টাকা কেটেছে",
+    "payment failed", "failed payment", "recharge failed", "failed recharge",
+    "bill failed", "payment unsuccessful", "money cut but failed",
+    "it failed", "was unsuccessful",
+    "পেমেন্ট ফেইলড", "রিচার্জ ফেইলড", "ফেইলড", "ব্যর্থ",
+    "পেমেন্ট ব্যর্থ", "টাকা কেটেছে",
     "রিচার্জ হয়নি", "পেমেন্ট হয়নি", "ব্যালেন্স কেটেছে",
     "failed কিন্তু টাকা",
 ]
